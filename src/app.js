@@ -1,36 +1,38 @@
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const { PrismaClient } = require("@prisma/client");
-const authRoutes = require("./routes/authRoutes");
-const paymentRoutes = require("./routes/paymentRoutes");
-const errorHandler = require("./middleware/errorHandler");
-const stripeWebhook = require("./webhooks/stripeWebhook");
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const helmet = require('helmet');
+const authRoutes = require('./routes/authRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const errorHandler = require('./middleware/errorHandler');
+const prisma = require('./config/database');
+const stripeWebhook = require('./webhooks/stripeWebhook');
 
 const app = express();
-const prisma = new PrismaClient();
 
 // Middleware
 app.use(helmet());
 app.use(cors());
+
+app.post('/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
 app.use(express.json());
 
 // Routes
-app.get("/", (req, res) => {
-  res.send("Hello World");
-});
-app.use("/api/auth", authRoutes);
-app.use("/api/payments", paymentRoutes);
-
-// Stripe webhook route
-app.post("/webhook", express.raw({ type: "application/json" }), stripeWebhook);
+app.use('/api/auth', authRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 3002;
+// DB connection
+prisma.$connect()
+  .then(() => console.log('Database connected successfully'))
+  .catch((err) => console.error('Database connection error:', err));
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(Server running on port ${PORT});
 });
 
 module.exports = app;
