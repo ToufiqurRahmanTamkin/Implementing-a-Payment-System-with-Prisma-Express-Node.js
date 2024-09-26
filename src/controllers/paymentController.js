@@ -1,5 +1,5 @@
 const { validationResult } = require("express-validator");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const stripe = require("../config/stripe");
 const prisma = require("../config/database");
 const emailService = require("../services/emailService");
 
@@ -130,7 +130,6 @@ exports.setupAutoPayment = async (req, res, next) => {
 
     res.json(payment);
   } catch (error) {
-    console.log(error);
     next(error);
   }
 };

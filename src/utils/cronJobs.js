@@ -4,17 +4,12 @@ const prisma = require("../config/database");
 const emailService = require("../services/emailService");
 
 const processAutoPayments = async () => {
-  console.log("CRON job started");
-
   const payments = await prisma.payment.findMany({
     where: {
       autoPayment: true,
       nextPaymentDate: { lte: new Date() },
     },
   });
-
-  console.log(`Found ${payments.length} payments to process`);
-  console.log("payments", payments);
 
   for (const payment of payments) {
     try {
@@ -37,7 +32,6 @@ const processAutoPayments = async () => {
         off_session: true,
       });
 
-      // if payment is successful send email
       const user = await prisma.user.findUnique({
         where: { id: payment.userId },
       });
@@ -58,8 +52,6 @@ const processAutoPayments = async () => {
           ), // Example: weekly payments
         },
       });
-
-      console.log(`Payment processed for user ${payment.userId}`);
     } catch (error) {
       console.error(
         `Failed to process auto-payment for user ${payment.userId}:`,
@@ -82,8 +74,6 @@ const processAutoPayments = async () => {
       });
     }
   }
-
-  console.log("CRON job finished");
 };
 
 // Schedule the CRON job

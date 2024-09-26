@@ -1,8 +1,6 @@
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const { PrismaClient } = require("@prisma/client");
+const stripe = require("../config/stripe");
+const prisma = require("../config/database");
 const emailService = require("../services/emailService");
-
-const prisma = new PrismaClient();
 
 const handlePaymentIntentSucceeded = async (paymentIntent) => {
   const payment = await prisma.payment.findFirst({
