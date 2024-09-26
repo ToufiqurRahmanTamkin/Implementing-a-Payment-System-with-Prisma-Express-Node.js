@@ -51,4 +51,6 @@ router.post("/trigger-cron", async (req, res) => {
   }
 });
 
+router.get("/history", authMiddleware, paymentController.getPaymentHistory);
+
 module.exports = router;

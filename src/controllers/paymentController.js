@@ -95,3 +95,16 @@ exports.setupAutoPayment = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.getPaymentHistory = async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const payments = await prisma.payment.findMany({
+      where: { userId },
+      orderBy: { id: "desc" }, // mostly i use createdAt and updatedAt for storting but as i don't put them in the schema so i used id
+    });
+    res.status(200).json(payments);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch payment history" });
+  }
+};
