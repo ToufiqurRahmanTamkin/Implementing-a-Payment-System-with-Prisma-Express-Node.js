@@ -30,4 +30,31 @@ const sendPaymentFailureEmail = async (email, amount, currency) => {
   await transporter.sendMail(mailOptions);
 };
 
-module.exports = { sendPaymentSuccessEmail, sendPaymentFailureEmail };
+const sendScheduledPaymentEmail = async (email, amount, currency) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Scheduled Payment",
+    text: `Scheduled payment of ${currency}-${amount} successful.`,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+const sendRefundEmail = async (email, amount, currency) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Refund Processed",
+    text: `Refund of ${currency}-${amount} successful.`,
+  };
+
+  await transporter.sendMail(mailOptions);
+};
+
+module.exports = {
+  sendPaymentSuccessEmail,
+  sendPaymentFailureEmail,
+  sendScheduledPaymentEmail,
+  sendRefundEmail,
+};

@@ -1,18 +1,26 @@
 const { validationResult } = require("express-validator");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const prisma = require("../config/database"); // Correct path
+const prisma = require("../config/database");
+const emailService = require("../services/emailService");
 
 exports.createPaymentIntent = async (req, res, next) => {
   try {
     const errors = validationResult(req);
+
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { amount, currency, paymentMethodId, returnUrl } = req.body; // Ensure returnUrl is retrieved from the request body
+    const { amount, currency, paymentMethodId, returnUrl } = req.body;
 
     if (!paymentMethodId) {
       return res.status(400).json({ message: "Payment Method ID is required" });
+    }
+
+    if (amount < 50) {
+      return res
+        .status(400)
+        .json({ message: "Amount must be at least $0.50 USD" });
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -21,19 +29,37 @@ exports.createPaymentIntent = async (req, res, next) => {
       payment_method: paymentMethodId,
       confirmation_method: "automatic",
       confirm: true,
-      return_url: returnUrl, // Specify the return_url
+      return_url: returnUrl,
       metadata: { userId: req.userId },
     });
 
-    await prisma.payment.create({
-      data: {
-        userId: req.userId,
-        stripePaymentIntentId: paymentIntent.id,
-        amount,
-        currency,
-        status: paymentIntent.status,
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
     });
+
+    if (paymentIntent.status === "succeeded") {
+      await emailService.sendPaymentSuccessEmail(
+        user.email,
+        paymentIntent.amount,
+        paymentIntent.currency
+      );
+
+      await prisma.payment.create({
+        data: {
+          userId: req.userId,
+          stripePaymentIntentId: paymentIntent.id,
+          amount,
+          currency,
+          status: paymentIntent.status,
+        },
+      });
+    } else {
+      await emailService.sendPaymentFailureEmail(
+        user.email,
+        paymentIntent.amount,
+        paymentIntent.currency
+      );
+    }
 
     res.json({
       clientSecret: paymentIntent.client_secret,
@@ -90,8 +116,21 @@ exports.setupAutoPayment = async (req, res, next) => {
       },
     });
 
+    if (payment) {
+      const user = await prisma.user.findUnique({
+        where: { id: payment.userId },
+      });
+
+      await emailService.sendScheduledPaymentEmail(
+        user.email,
+        payment.amount,
+        payment.currency
+      );
+    }
+
     res.json(payment);
   } catch (error) {
+    console.log(error);
     next(error);
   }
 };
@@ -101,7 +140,7 @@ exports.getPaymentHistory = async (req, res) => {
     const userId = req.query.userId;
     const payments = await prisma.payment.findMany({
       where: { userId },
-      orderBy: { id: "desc" }, // mostly i use createdAt and updatedAt for storting but as i don't put them in the schema so i used id
+      orderBy: { id: "desc" }, // mostly i use createdAt or updatedAt for storting but as i don't put them in the schema so i used id
     });
     res.status(200).json(payments);
   } catch (error) {
@@ -134,12 +173,26 @@ exports.refundPayment = async (req, res) => {
       amount: payment.amount,
     });
 
-    await prisma.payment.update({
-      where: { stripePaymentIntentId: paymentIntentId },
-      data: { status: "refunded" },
-    });
+    if (refund?.status === "succeeded") {
+      await prisma.payment.update({
+        where: { stripePaymentIntentId: paymentIntentId },
+        data: { status: "refunded" },
+      });
 
-    res.status(200).json({ message: "Refund successful", refund });
+      // send a refund email
+      const user = await prisma.user.findUnique({
+        where: { id: payment.userId },
+      });
+
+      await emailService.sendRefundEmail(
+        user.email,
+        payment.amount,
+        payment.currency
+      );
+      return res.status(200).json({ message: "Refund processed successfully" });
+    } else {
+      return res.status(500).json({ error: "Failed to process refund" });
+    }
   } catch (error) {
     console.error("Error processing refund:", error);
     res.status(500).json({ error: "Failed to process refund" });

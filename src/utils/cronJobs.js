@@ -37,6 +37,17 @@ const processAutoPayments = async () => {
         off_session: true,
       });
 
+      // if payment is successful send email
+      const user = await prisma.user.findUnique({
+        where: { id: payment.userId },
+      });
+
+      await emailService.sendPaymentSuccessEmail(
+        user.email,
+        payment.amount,
+        payment.currency
+      );
+
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
