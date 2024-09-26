@@ -64,11 +64,11 @@ const processAutoPayments = async () => {
         payment.currency
       );
 
-      // disable auto-payments after repeated fail
-      // await prisma.payment.update({
-      //   where: { id: payment.id },
-      //   data: { autoPayment: false },
-      // });
+      // disable auto-payments after repeated failures
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { autoPayment: false },
+      });
     }
   }
 
