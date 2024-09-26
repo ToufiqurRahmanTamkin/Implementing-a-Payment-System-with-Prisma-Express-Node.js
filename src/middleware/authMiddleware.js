@@ -1,20 +1,17 @@
-const jwt = require('jsonwebtoken');
-const prisma = require('../config/database');
+const jwt = require("jsonwebtoken");
 
-module.exports = async (req, res, next) => {
+module.exports = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: "Authorization header missing" });
+  }
+
+  const token = authHeader.split(" ")[1];
   try {
-    const token = req.header('Authorization').replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-
-    if (!user) {
-      throw new Error();
-    }
-
-    req.user = user;
-    req.token = token;
+    req.userId = decoded.userId;
     next();
   } catch (error) {
-    res.status(401).send({ error: 'Please authenticate.' });
+    res.status(401).json({ message: "Invalid token" });
   }
 };
