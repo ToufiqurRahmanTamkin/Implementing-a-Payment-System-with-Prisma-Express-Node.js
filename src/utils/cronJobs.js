@@ -36,22 +36,34 @@ const processAutoPayments = async () => {
         where: { id: payment.userId },
       });
 
-      await emailService.sendPaymentSuccessEmail(
-        user.email,
-        payment.amount,
-        payment.currency
-      );
+      if (paymentIntent.status === "succeeded") {
+        await emailService.sendPaymentSuccessEmail(
+          user.email,
+          payment.amount,
+          payment.currency
+        );
 
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          stripePaymentIntentId: paymentIntent.id,
-          status: "pending",
-          nextPaymentDate: new Date(
-            new Date().setDate(new Date().getDate() + 7)
-          ), // Example: weekly payments
-        },
-      });
+        // Create a new payment entry instead of updating the existing one
+        await prisma.payment.create({
+          data: {
+            userId: payment.userId,
+            stripePaymentIntentId: paymentIntent.id,
+            amount: payment.amount,
+            currency: payment.currency,
+            status: paymentIntent.status,
+            nextPaymentDate: new Date(
+              new Date().setDate(new Date().getDate() + 7) // Example: weekly payments
+            ),
+            autoPayment: payment.autoPayment,
+          },
+        });
+      } else {
+        await emailService.sendPaymentFailureEmail(
+          user.email,
+          payment.amount,
+          payment.currency
+        );
+      }
     } catch (error) {
       console.error(
         `Failed to process auto-payment for user ${payment.userId}:`,
@@ -61,13 +73,14 @@ const processAutoPayments = async () => {
       const user = await prisma.user.findUnique({
         where: { id: payment.userId },
       });
+
       await emailService.sendPaymentFailureEmail(
         user.email,
         payment.amount,
         payment.currency
       );
 
-      // disable auto-payments after repeated failures
+      // Disable auto-payments after repeated failures
       await prisma.payment.update({
         where: { id: payment.id },
         data: { autoPayment: false },

@@ -2,6 +2,7 @@ const { validationResult } = require("express-validator");
 const stripe = require("../config/stripe");
 const prisma = require("../config/database");
 const emailService = require("../services/emailService");
+const paymentService = require("../services/paymentService");
 
 exports.createPaymentIntent = async (req, res, next) => {
   try {
@@ -23,50 +24,38 @@ exports.createPaymentIntent = async (req, res, next) => {
         .json({ message: "Amount must be at least $0.50 USD" });
     }
 
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await paymentService.createPaymentIntent(
+      req.userId,
       amount,
       currency,
-      payment_method: paymentMethodId,
-      confirmation_method: "automatic",
-      confirm: true,
-      return_url: returnUrl,
-      metadata: { userId: req.userId },
-    });
+      paymentMethodId,
+      returnUrl
+    );
 
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
     });
 
     if (paymentIntent.status === "succeeded") {
-      await emailService.sendPaymentSuccessEmail(
-        user.email,
-        paymentIntent.amount,
-        paymentIntent.currency
-      );
-
-      await prisma.payment.create({
-        data: {
-          userId: req.userId,
-          stripePaymentIntentId: paymentIntent.id,
-          amount,
-          currency,
-          status: paymentIntent.status,
-        },
+      await emailService.sendPaymentSuccessEmail(user.email, amount, currency);
+    } else if (paymentIntent.status === "requires_action") {
+      return res.json({
+        requiresAction: true,
+        clientSecret: paymentIntent.client_secret,
       });
     } else {
-      await emailService.sendPaymentFailureEmail(
-        user.email,
-        paymentIntent.amount,
-        paymentIntent.currency
-      );
+      await emailService.sendPaymentFailureEmail(user.email, amount, currency);
     }
 
     res.json({
-      clientSecret: paymentIntent.client_secret,
       id: paymentIntent.id,
       status: paymentIntent.status,
+      clientSecret: paymentIntent.client_secret,
     });
   } catch (error) {
+    if (error.type === "StripeCardError") {
+      return res.status(400).json({ message: error.message });
+    }
     next(error);
   }
 };
