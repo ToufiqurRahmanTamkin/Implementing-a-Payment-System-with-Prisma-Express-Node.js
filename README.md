@@ -8,7 +8,7 @@ Follow these instructions to set up and run the project on your local machine.
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v14 or higher)
+- [Node.js](https://nodejs.org/) (v16 or higher)
 - [npm](https://www.npmjs.com/)
 - A PostgreSQL database (or any other database supported by Prisma)
 - A Stripe account
