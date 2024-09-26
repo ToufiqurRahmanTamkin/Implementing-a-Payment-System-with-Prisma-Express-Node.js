@@ -53,4 +53,15 @@ router.post("/trigger-cron", async (req, res) => {
 
 router.get("/history", authMiddleware, paymentController.getPaymentHistory);
 
+router.post(
+  "/refund",
+  authMiddleware,
+  [
+    body("paymentIntentId")
+      .notEmpty()
+      .withMessage("Payment Intent ID is required"),
+  ],
+  paymentController.refundPayment
+);
+
 module.exports = router;

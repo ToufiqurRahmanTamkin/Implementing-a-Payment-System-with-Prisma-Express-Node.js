@@ -108,3 +108,40 @@ exports.getPaymentHistory = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch payment history" });
   }
 };
+
+exports.refundPayment = async (req, res) => {
+  try {
+    const { paymentIntentId } = req.body;
+
+    if (!paymentIntentId) {
+      return res.status(400).json({ error: "Payment Intent ID is required" });
+    }
+
+    const payment = await prisma.payment.findUnique({
+      where: { stripePaymentIntentId: paymentIntentId },
+    });
+
+    if (!payment) {
+      return res.status(404).json({ error: "Payment not found" });
+    }
+
+    if (payment.userId !== req.userId) {
+      return res.status(403).json({ error: "Unauthorized request" });
+    }
+
+    const refund = await stripe.refunds.create({
+      payment_intent: paymentIntentId,
+      amount: payment.amount,
+    });
+
+    await prisma.payment.update({
+      where: { stripePaymentIntentId: paymentIntentId },
+      data: { status: "refunded" },
+    });
+
+    res.status(200).json({ message: "Refund successful", refund });
+  } catch (error) {
+    console.error("Error processing refund:", error);
+    res.status(500).json({ error: "Failed to process refund" });
+  }
+};
