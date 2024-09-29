@@ -15,8 +15,11 @@ const sendPaymentSuccessEmail = async (email, amount, currency) => {
     subject: "Payment Successful",
     text: `Your payment of ${currency}-${amount} was successful.`,
   };
-
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 const sendPaymentFailureEmail = async (email, amount, currency) => {
@@ -27,7 +30,11 @@ const sendPaymentFailureEmail = async (email, amount, currency) => {
     text: `Your payment of ${currency}-${amount} failed. Please check your payment method.`,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 const sendScheduledPaymentEmail = async (email, amount, currency) => {
@@ -38,7 +45,11 @@ const sendScheduledPaymentEmail = async (email, amount, currency) => {
     text: `Scheduled payment of ${currency}-${amount} successful.`,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 const sendRefundEmail = async (email, amount, currency) => {
@@ -49,7 +60,11 @@ const sendRefundEmail = async (email, amount, currency) => {
     text: `Refund of ${currency}-${amount} successful.`,
   };
 
-  await transporter.sendMail(mailOptions);
+  try {
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 module.exports = {
